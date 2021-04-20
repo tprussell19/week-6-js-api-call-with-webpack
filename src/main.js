@@ -2,49 +2,35 @@ import $ from 'jquery';
 import 'bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './css/styles.css';
-import WeatherService from './services/weather-service.js';
-import GiphyService from './services/giphy-service';
-
-function clearFields() {
-  $('#location').val("");
-  $('.show-errors').text("");
-  $('.show-gif').text("");
-}
-
-function displayWeatherDescription(description) {
-  $('.weather-description').text(`The weather is ${description}!`);
-}
-
-function displayGif(response) {
-  const url = response.data[0].images.downsized.url
-  $('.show-gif').html(`<img src='${url}'>`);
-}
-
-function displayErrors(error) {
-  $('.show-errors').text(`${error}`);
-}
 
 $(document).ready(function() {
   $('#weatherLocation').click(function() {
     let city = $('#location').val();
-    clearFields();
-    WeatherService.getWeather(city)
-      .then(function(weatherResponse) {
-        if (weatherResponse instanceof Error) {
-          throw Error(`OpenWeather API error: ${weatherResponse.message}`);
+    $('#location').val("");
+
+    let promise = new Promise(function(resolve, reject) {
+      let request = new XMLHttpRequest();
+      const url = `http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.OPEN_WEATHER_API_KEY}`;
+
+      request.onload = function() {
+        if (this.status === 200) {
+          resolve(request.response);
+        } else {
+          reject(request.response);
         }
-        const weatherDescription = weatherResponse.weather[0].description;
-        displayWeatherDescription(weatherDescription);
-        return GiphyService.getGif(weatherDescription);
-      })
-      .then(function(giphyResponse) {
-        if (giphyResponse instanceof Error) {
-          throw Error(`Giphy API error: ${giphyResponse.message}`);
-        }
-        displayGif(giphyResponse);
-      })
-      .catch(function(error) {
-        displayErrors(error.message)
-      });
+    }
+    request.open("GET", url, true);
+    request.send();
+  });
+
+  promise.then(function(response) {
+      $('.showHumidity').text(`The humidity in ${city} is ${response.main.humidity}%`);
+      $('.showTemp').text(`The temperature in Kelvins is ${response.main.temp} degrees.`);
+      $('.showErrors').text("");
+  }, function(error) {
+    $('.showErrors').text(`There was an error processing your request: ${error}`);
+    $('showHumidity').text("");
+    $('.showTemp').text("");
+    });
   });
 });
